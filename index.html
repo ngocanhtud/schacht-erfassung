@@ -355,7 +355,7 @@
   <script>
     // ==== CONFIGURE THIS ====
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4YsgFN6_BYrQIJ-V_zM6OFqat2uCMjLfbPhu6-WpMqUe73IYRh193RzON23C4OIA/exec";
-    const ACCESS_TOKEN = "VEW_2026"; // must match ACCESS_TOKEN in Code.gs
+    const ACCESS_TOKEN = "VEW_2026"; // 
     // =========================
 
     // --- Passcode gate ---
@@ -389,9 +389,9 @@
 
     function initMap() {
       const map = L.map('map').setView([51.55, 14.713], 12);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        attribution: 'Tiles &copy; Esri'
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
       let allData = [];
