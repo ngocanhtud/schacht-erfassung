@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schacht-Erfassung — Fehlende Daten</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f5;
+      --panel: #ffffff;
+      --ink: #1c2523;
+      --muted: #5c6b67;
+      --border: #dfe6e3;
+      --accent: #2f6f5e;
+      --danger: #c0483a;
+      --ok: #3f8f5f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 17px;
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .stats b {
+      color: var(--ink);
+    }
+
+    .controls {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    select,
+    input[type=text] {
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    label.f {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .content {
+      display: flex;
+      height: calc(100vh - 118px);
+      width: 100%;
+    }
+
+    #map {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .table-pane {
+      width: 400px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-pane table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12.5px;
+    }
+
+    .table-pane thead th {
+      position: sticky;
+      top: 0;
+      background: var(--panel);
+      text-align: left;
+      padding: 8px 8px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .table-pane thead th:hover {
+      color: var(--ink);
+    }
+
+    .table-pane thead th.sorted::after {
+      content: attr(data-arrow);
+      margin-left: 3px;
+    }
+
+    .table-pane tbody td {
+      padding: 7px 8px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .table-pane tbody tr {
+      cursor: pointer;
+    }
+
+    .table-pane tbody tr:hover {
+      background: var(--bg);
+    }
+
+    .table-pane tbody tr.selected {
+      background: #e6efe9;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .toggle-table-btn {
+      display: none;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      .content {
+        flex-direction: column;
+      }
+
+      .table-pane {
+        width: 100%;
+        height: 45%;
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+
+      #map {
+        height: 55%;
+        flex: none;
+      }
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .popup-box {
+      font-size: 13px;
+      min-width: 220px;
+    }
+
+    .popup-box h3 {
+      margin: 0 0 6px 0;
+      font-size: 14px;
+    }
+
+    .popup-box .row {
+      margin: 4px 0;
+    }
+
+    .popup-box .missing {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .popup-box .ok {
+      color: var(--ok);
+    }
+
+    .popup-box input {
+      width: 90px;
+      padding: 4px 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .popup-box button {
+      margin-top: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .popup-box button:hover {
+      opacity: 0.9;
+    }
+
+    .popup-box .name-field {
+      margin-top: 6px;
+    }
+
+    .popup-box .name-field input {
+      width: 100%;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="gate"
+    style="position:fixed; inset:0; background:#1c2523; display:flex; align-items:center; justify-content:center; z-index:10000;">
+    <div style="background:#fff; padding:28px 32px; border-radius:10px; max-width:320px; width:90%; text-align:center;">
+      <h2 style="margin:0 0 6px 0; font-size:16px;">Schacht-Erfassung</h2>
+      <p style="font-size:13px; color:#5c6b67; margin:0 0 14px 0;">Bitte Team-Zugangscode eingeben</p>
+      <input type="password" id="gateInput" placeholder="Zugangscode"
+        style="width:100%; padding:9px 10px; border:1px solid #dfe6e3; border-radius:6px; font-size:14px; margin-bottom:10px;" />
+      <button id="gateSubmit"
+        style="width:100%; background:#2f6f5e; color:#fff; border:none; padding:9px; border-radius:6px; cursor:pointer; font-size:14px;">Bestätigen</button>
+      <p id="gateError" style="color:#c0483a; font-size:12px; margin:10px 0 0 0; display:none;">Falscher Code — bitte
+        erneut versuchen.</p>
+    </div>
+  </div>
+
+
+  <div id="appRoot" style="display:none;">
+    <header>
+      <h1>Schacht-Erfassung — Regenwasser</h1>
+      <div class="stats">
+        <span>Gesamt: <b id="statTotal">–</b></span>
+        <span><span class="legend-dot" style="background:#c0483a"></span>Fehlend: <b id="statMissing">–</b></span>
+        <span><span class="legend-dot" style="background:#3f8f5f"></span>Vollständig: <b id="statOk">–</b></span>
+        <span><span class="legend-dot" style="background:#9aa39e"></span>Ausgeschlossen: <b
+            id="statExcluded">–</b></span>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label class="f">Auslauf-ID
+        <select id="filterAuslauf">
+          <option value="">Alle</option>
+        </select>
+      </label>
+      <label class="f">Leitung (Line)
+        <select id="filterLine">
+          <option value="">Alle</option>
+        </select>
+      </label>
+      <label class="f">Status
+        <select id="filterStatus">
+          <option value="">Alle</option>
+          <option value="not-excluded">Alle außer Ausgeschlossen</option>
+          <option value="Missing Info">Nur fehlende Daten</option>
+          <option value="Complete">Nur vollständige</option>
+          <option value="Excluded">Nur ausgeschlossene</option>
+        </select>
+      </label>
+      <label class="f">Dein Name (für Änderungen)
+        <input type="text" id="editorName" placeholder="Name eingeben" />
+      </label>
+    </div>
+
+    <div class="content">
+      <div id="map"></div>
+      <div class="table-pane">
+        <table>
+          <thead>
+            <tr>
+              <th data-field="id">ID</th>
+              <th data-field="auslauf_id">Auslauf</th>
+              <th data-field="line">Line</th>
+              <th data-field="status">Status</th>
+              <th data-field="deckelhoehe">Deckel</th>
+              <th data-field="sohlhoehe">Sohle</th>
+              <th>Korr.</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <script>
+    // ==== CONFIGURE THIS ====
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4YsgFN6_BYrQIJ-V_zM6OFqat2uCMjLfbPhu6-WpMqUe73IYRh193RzON23C4OIA/exec";
+    const ACCESS_TOKEN = "VEW_2026"; // must match ACCESS_TOKEN in Code.gs
+    // =========================
+
+    // --- Passcode gate ---
+    const gate = document.getElementById('gate');
+    const appRoot = document.getElementById('appRoot');
+    const gateInput = document.getElementById('gateInput');
+    const gateSubmit = document.getElementById('gateSubmit');
+    const gateError = document.getElementById('gateError');
+
+    function tryUnlock() {
+      const entered = gateInput.value.trim();
+      if (entered === ACCESS_TOKEN) {
+        sessionStorage.setItem('schacht_token_ok', '1');
+        gate.style.display = 'none';
+        appRoot.style.display = 'block';
+        initMap();
+      } else {
+        gateError.style.display = 'block';
+      }
+    }
+    gateSubmit.addEventListener('click', tryUnlock);
+    gateInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+
+    if (sessionStorage.getItem('schacht_token_ok') === '1') {
+      gate.style.display = 'none';
+      appRoot.style.display = 'block';
+      initMap();
+    } else {
+      gateInput.focus();
+    }
+
+    function initMap() {
+      const map = L.map('map').setView([51.55, 14.713], 12);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+      }).addTo(map);
+
+      let allData = [];
+      let markers = {};
+      let markerLayer = L.layerGroup().addTo(map);
+
+      function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+      }
+
+      function markerColor(status) {
+        if (status === "Missing Info") return "#c0483a";
+        if (status === "Excluded") return "#9aa39e";
+        return "#3f8f5f";
+      }
+
+      function buildPopup(item) {
+        const div = document.createElement('div');
+        div.className = 'popup-box';
+
+        if (item.status === "Excluded") {
+          div.innerHTML = `
+        <h3>${item.id}</h3>
+        <div class="row">Auslauf: <b>${item.auslauf_id}</b> &nbsp;|&nbsp; Line: <b>${item.line}</b></div>
+        <div class="row" style="color:#9aa39e; font-weight:600;">Als nicht relevant markiert</div>
+        <button class="include-btn">Wieder einschließen</button>
+      `;
+          div.querySelector('.include-btn').addEventListener('click', () => toggleExclude(item, div, false));
+          return div;
+        }
+
+        const dMissing = !item.deckelhoehe;
+        const sMissing = !item.sohlhoehe;
+        div.innerHTML = `
+      <h3>${item.id}</h3>
+      <div class="row">Auslauf: <b>${item.auslauf_id}</b> &nbsp;|&nbsp; Line: <b>${item.line}</b></div>
+      <div class="row">Straße: ${item.strasse || '–'}</div>
+      <div class="row ${dMissing ? 'missing' : 'ok'}">
+        Deckelhöhe: ${dMissing ? 'FEHLT' : ''}
+        <br><input type="number" step="0.01" class="d-input" placeholder="Wert eingeben" value="${item.deckelhoehe ?? ''}"/>
+      </div>
+      <div class="row ${sMissing ? 'missing' : 'ok'}">
+        Sohlhöhe: ${sMissing ? 'FEHLT' : ''}
+        <br><input type="number" step="0.01" class="s-input" placeholder="Wert eingeben" value="${item.sohlhoehe ?? ''}"/>
+      </div>
+      <button class="save-btn">Speichern</button>
+      <div class="row" style="margin-top:8px;">
+        <a href="#" class="exclude-link" style="font-size:12px; color:var(--muted);">Als nicht relevant markieren</a>
+      </div>
+    `;
+        div.querySelector('.save-btn').addEventListener('click', () => submitEdit(item, div));
+        div.querySelector('.exclude-link').addEventListener('click', (e) => {
+          e.preventDefault();
+          toggleExclude(item, div, true);
+        });
+        return div;
+      }
+
+      function toggleExclude(item, div, excludeValue) {
+        const editorName = document.getElementById('editorName').value.trim();
+        if (!editorName) {
+          showToast("Bitte zuerst deinen Namen oben eingeben.");
+          return;
+        }
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ id: item.id, editor_name: editorName, exclude: excludeValue, token: ACCESS_TOKEN })
+        })
+          .then(r => r.json())
+          .then(res => {
+            if (res.success) {
+              showToast(excludeValue ? "Als nicht relevant markiert." : "Wieder eingeschlossen.");
+              map.closePopup();
+              loadData();
+            } else {
+              showToast("Fehler: " + (res.error || "unbekannt"));
+            }
+          })
+          .catch(() => showToast("Netzwerkfehler."));
+      }
+
+      function submitEdit(item, div) {
+        const editorName = document.getElementById('editorName').value.trim();
+        if (!editorName) {
+          showToast("Bitte zuerst deinen Namen oben eingeben.");
+          return;
+        }
+        const dInput = div.querySelector('.d-input');
+        const sInput = div.querySelector('.s-input');
+        const payload = { id: item.id, editor_name: editorName, token: ACCESS_TOKEN };
+
+        const dChanged = dInput && dInput.value !== '' && Number(dInput.value) !== Number(item.deckelhoehe);
+        const sChanged = sInput && sInput.value !== '' && Number(sInput.value) !== Number(item.sohlhoehe);
+        const dOverwrite = dChanged && item.deckelhoehe; // had a real value before
+        const sOverwrite = sChanged && item.sohlhoehe;
+
+        if (dOverwrite || sOverwrite) {
+          const msgs = [];
+          if (dOverwrite) msgs.push(`Deckelhöhe: ${item.deckelhoehe} → ${dInput.value}`);
+          if (sOverwrite) msgs.push(`Sohlhöhe: ${item.sohlhoehe} → ${sInput.value}`);
+          const ok = confirm("Achtung: Du überschreibst einen bereits vorhandenen Wert!\n\n" + msgs.join("\n") + "\n\nWirklich speichern?");
+          if (!ok) return;
+        }
+
+        if (dInput && dInput.value) payload.deckelhoehe = dInput.value;
+        if (sInput && sInput.value) payload.sohlhoehe = sInput.value;
+
+        if (!payload.deckelhoehe && !payload.sohlhoehe) {
+          showToast("Bitte mindestens einen Wert eingeben.");
+          return;
+        }
+
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        })
+          .then(r => r.json())
+          .then(res => {
+            if (res.success) {
+              showToast("Gespeichert — danke!");
+              map.closePopup();
+              loadData();
+            } else {
+              showToast("Fehler: " + (res.error || "unbekannt"));
+            }
+          })
+          .catch(() => showToast("Netzwerkfehler beim Speichern."));
+      }
+
+      function populateFilterOptions() {
+        const auslaufSel = document.getElementById('filterAuslauf');
+        const lineSel = document.getElementById('filterLine');
+        const auslaufVals = [...new Set(allData.map(d => d.auslauf_id))].sort();
+        auslaufSel.innerHTML = '<option value="">Alle</option>' +
+          auslaufVals.map(v => `<option value="${v}">${v}</option>`).join('');
+        updateLineOptions();
+      }
+
+      function updateLineOptions() {
+        const auslaufSel = document.getElementById('filterAuslauf');
+        const lineSel = document.getElementById('filterLine');
+        const selectedAuslauf = auslaufSel.value;
+        const pool = selectedAuslauf ? allData.filter(d => d.auslauf_id === selectedAuslauf) : allData;
+        const lineVals = [...new Set(pool.map(d => d.line))].sort();
+        lineSel.innerHTML = '<option value="">Alle</option>' +
+          lineVals.map(v => `<option value="${v}">${v}</option>`).join('');
+      }
+
+      function applyFilters() {
+        const auslauf = document.getElementById('filterAuslauf').value;
+        const line = document.getElementById('filterLine').value;
+        const status = document.getElementById('filterStatus').value;
+
+        markerLayer.clearLayers();
+        let filtered = allData.filter(d =>
+          (!auslauf || d.auslauf_id === auslauf) &&
+          (!line || d.line === line) &&
+          (status === "not-excluded" ? d.status !== "Excluded" : (!status || d.status === status))
+        );
+
+        markers = {};
+        filtered.forEach(item => {
+          if (!item.lat || !item.lon) return;
+          const marker = L.circleMarker([item.lat, item.lon], {
+            radius: 8,
+            fillColor: markerColor(item.status),
+            color: "#fff",
+            weight: 2,
+            fillOpacity: 0.9
+          });
+          marker.bindPopup(buildPopup(item));
+          marker.addTo(markerLayer);
+          markers[item.id] = marker;
+        });
+
+        document.getElementById('statTotal').textContent = filtered.length;
+        document.getElementById('statMissing').textContent = filtered.filter(d => d.status === "Missing Info").length;
+        document.getElementById('statOk').textContent = filtered.filter(d => d.status === "Complete").length;
+        document.getElementById('statExcluded').textContent = filtered.filter(d => d.status === "Excluded").length;
+
+        renderTable(filtered);
+      }
+
+      let sortField = "id";
+      let sortAsc = true;
+
+      function renderTable(rows) {
+        const sorted = [...rows].sort((a, b) => {
+          let va = a[sortField], vb = b[sortField];
+          if (va === null || va === undefined) va = "";
+          if (vb === null || vb === undefined) vb = "";
+          if (typeof va === "number" || typeof vb === "number") {
+            va = Number(va) || -Infinity;
+            vb = Number(vb) || -Infinity;
+          }
+          if (va < vb) return sortAsc ? -1 : 1;
+          if (va > vb) return sortAsc ? 1 : -1;
+          return 0;
+        });
+
+        document.querySelectorAll('.table-pane th').forEach(th => {
+          th.classList.remove('sorted');
+          if (th.dataset.field === sortField) {
+            th.classList.add('sorted');
+            th.dataset.arrow = sortAsc ? '▲' : '▼';
+          }
+        });
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = sorted.map(item => {
+          const dotColor = markerColor(item.status);
+          const statusLabel = item.status === "Missing Info" ? "Fehlend" : (item.status === "Excluded" ? "Ausgeschlossen" : "OK");
+          const d = item.deckelhoehe ?? "–";
+          const s = item.sohlhoehe ?? "–";
+          const dCorrected = item.orig_deckelhoehe && item.deckelhoehe && Number(item.orig_deckelhoehe) !== Number(item.deckelhoehe);
+          const sCorrected = item.orig_sohlhoehe && item.sohlhoehe && Number(item.orig_sohlhoehe) !== Number(item.sohlhoehe);
+          const corrLabel = (dCorrected || sCorrected) ? '<span title="Wert wurde nachträglich geändert" style="color:#c98a1c;">⚠️</span>' : '';
+          return `<tr data-id="${item.id}">
+        <td><span class="status-dot" style="background:${dotColor}"></span>${item.id}</td>
+        <td>${item.auslauf_id}</td>
+        <td>${item.line}</td>
+        <td>${statusLabel}</td>
+        <td>${d}</td>
+        <td>${s}</td>
+        <td>${corrLabel}</td>
+      </tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('tr').forEach(tr => {
+          tr.addEventListener('click', () => {
+            const id = tr.dataset.id;
+            const marker = markers[id];
+            if (!marker) return;
+            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+            tr.classList.add('selected');
+            map.flyTo(marker.getLatLng(), 17, { duration: 0.6 });
+            setTimeout(() => marker.openPopup(), 400);
+          });
+        });
+      }
+
+      document.querySelectorAll('.table-pane th').forEach(th => {
+        if (!th.dataset.field) return; // skip non-sortable columns (e.g. "Korr.")
+        th.addEventListener('click', () => {
+          const field = th.dataset.field;
+          if (sortField === field) sortAsc = !sortAsc;
+          else { sortField = field; sortAsc = true; }
+          applyFilters();
+        });
+      });
+
+      function loadData() {
+        fetch(APPS_SCRIPT_URL + "?token=" + encodeURIComponent(ACCESS_TOKEN))
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.success === false) {
+              showToast("Zugriff verweigert — Code prüfen.");
+              return;
+            }
+            allData = data.map(d => ({
+              ...d,
+              auslauf_id: String(d.auslauf_id ?? '').trim(),
+              line: String(d.line ?? '').trim()
+            }));
+            populateFilterOptions();
+            applyFilters();
+            if (allData.length && allData[0].lat) {
+              map.setView([allData[0].lat, allData[0].lon], 13);
+            }
+          })
+          .catch(() => showToast("Konnte Daten nicht laden. Apps-Script-URL prüfen."));
+      }
+
+      document.getElementById('filterAuslauf').addEventListener('change', () => { updateLineOptions(); applyFilters(); });
+      document.getElementById('filterLine').addEventListener('change', applyFilters);
+      document.getElementById('filterStatus').addEventListener('change', applyFilters);
+
+      loadData();
+
+      // Fix: Leaflet can miscalculate its size if initialized right as its
+      // container becomes visible, leaving tiles gray/blank. Force a resize check.
+      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => map.invalidateSize(), 500);
+    } // end initMap
+  </script>
+</body>
+
+</html>
