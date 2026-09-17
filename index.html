@@ -332,12 +332,6 @@
 
     <div class="content">
       <div id="map"></div>
-      <div id="loadingOverlay" style="position:absolute; inset:0; background:rgba(244,246,245,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; font-size:14px; color:var(--muted);">
-        <div style="text-align:center;">
-          <div style="width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px;"></div>
-          Lade Daten …
-        </div>
-      </div>
       <div class="table-pane">
         <table>
           <thead>
@@ -361,7 +355,7 @@
   <script>
     // ==== CONFIGURE THIS ====
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4YsgFN6_BYrQIJ-V_zM6OFqat2uCMjLfbPhu6-WpMqUe73IYRh193RzON23C4OIA/exec";
-    const ACCESS_TOKEN = "VEW_2026"; // 
+    const ACCESS_TOKEN = "VEW_2026"; // must match ACCESS_TOKEN in Code.gs
     // =========================
 
     // --- Passcode gate ---
@@ -395,10 +389,10 @@
 
     function initMap() {
       const map = L.map('map').setView([51.55, 14.713], 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
       let allData = [];
       let markers = {};
@@ -652,92 +646,39 @@
         });
       });
 
- function loadLines() {
-    fetch(APPS_SCRIPT_URL + "?token=" + encodeURIComponent(ACCESS_TOKEN) + "&type=lines")
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.success === false) {
-          showToast("Leitungen konnten nicht geladen werden: " + (data.error || ""));
-          return;
-        }
-        lineLayer.clearLayers();
-        (data || []).forEach(item => {
-          let coords;
-          try {
-            coords = JSON.parse(item.coords);
-          } catch (err) {
-            return; // skip rows with bad/missing coords
-          }
-          if (!Array.isArray(coords) || coords.length < 2) return;
+      function loadData() {
+        fetch(APPS_SCRIPT_URL + "?token=" + encodeURIComponent(ACCESS_TOKEN))
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.success === false) {
+              showToast("Zugriff verweigert — Code prüfen.");
+              return;
+            }
+            allData = data.map(d => ({
+              ...d,
+              auslauf_id: String(d.auslauf_id ?? '').trim(),
+              line: String(d.line ?? '').trim()
+            }));
+            populateFilterOptions();
+            applyFilters();
+            if (allData.length && allData[0].lat) {
+              map.setView([allData[0].lat, allData[0].lon], 13);
+            }
+          })
+          .catch(() => showToast("Konnte Daten nicht laden. Apps-Script-URL prüfen."));
+      }
 
-          const isMissing = item.status === "Missing Info";
-          const polyline = L.polyline(coords, {
-            color: isMissing ? "#c0483a" : "#2f6f5e",
-            weight: 4,
-            opacity: 0.8
-          });
-          const popupHtml = `
-            <div class="popup-box">
-              <h3>${item.name || item.id}</h3>
-              <div class="row">Material: ${item.material || '–'}</div>
-              <div class="row">Durchmesser: ${item.durchmesser || '–'}</div>
-              <div class="row ${isMissing ? 'missing' : 'ok'}">Status: ${isMissing ? 'Fehlende Daten' : 'OK'}</div>
-            </div>
-          `;
-          polyline.bindPopup(popupHtml);
-          polyline.addTo(lineLayer);
-        });
-        linesLoaded = true;
-      })
-      .catch(() => showToast("Konnte Leitungen nicht laden."));
-  }
+      document.getElementById('filterAuslauf').addEventListener('change', () => { updateLineOptions(); applyFilters(); });
+      document.getElementById('filterLine').addEventListener('change', applyFilters);
+      document.getElementById('filterStatus').addEventListener('change', applyFilters);
 
-  document.getElementById('toggleLines').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      if (!linesLoaded) loadLines();
-      lineLayer.addTo(map);
-    } else {
-      map.removeLayer(lineLayer);
-    }
-  });
+      loadData();
 
-  function loadData() {
-    fetch(APPS_SCRIPT_URL + "?token=" + encodeURIComponent(ACCESS_TOKEN))
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.success === false) {
-          showToast("Zugriff verweigert — Code prüfen.");
-          return;
-        }
-        allData = data.map(d => ({
-          ...d,
-          auslauf_id: String(d.auslauf_id ?? '').trim(),
-          line: String(d.line ?? '').trim()
-        }));
-        populateFilterOptions();
-        applyFilters();
-        if (allData.length && allData[0].lat) {
-          map.setView([allData[0].lat, allData[0].lon], 13);
-        }
-      })
-      .catch(() => showToast("Konnte Daten nicht laden. Apps-Script-URL prüfen."))
-      .finally(() => {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.style.display = 'none';
-      });
-  }
-
-  document.getElementById('filterAuslauf').addEventListener('change', () => { updateLineOptions(); applyFilters(); });
-  document.getElementById('filterLine').addEventListener('change', applyFilters);
-  document.getElementById('filterStatus').addEventListener('change', applyFilters);
-
-  loadData();
-
-  // Fix: Leaflet can miscalculate its size if initialized right as its
-  // container becomes visible, leaving tiles gray/blank. Force a resize check.
-  setTimeout(() => map.invalidateSize(), 150);
-  setTimeout(() => map.invalidateSize(), 500);
-  } // end initMap
+      // Fix: Leaflet can miscalculate its size if initialized right as its
+      // container becomes visible, leaving tiles gray/blank. Force a resize check.
+      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => map.invalidateSize(), 500);
+    } // end initMap
   </script>
 </body>
 
