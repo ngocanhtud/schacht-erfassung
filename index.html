@@ -325,7 +325,7 @@
           <option value="Excluded">Nur ausgeschlossene</option>
         </select>
       </label>
-      <label class="f">Dein Name (für Änderungen)
+      <label class="f">Ihr Name (für Änderungen)
         <input type="text" id="editorName" placeholder="Name eingeben" />
       </label>
     </div>
@@ -456,7 +456,7 @@
       function toggleExclude(item, div, excludeValue) {
         const editorName = document.getElementById('editorName').value.trim();
         if (!editorName) {
-          showToast("Bitte zuerst deinen Namen oben eingeben.");
+          showToast("Bitte tragen Sie zuerst Ihren Namen oben ein.");
           return;
         }
         fetch(APPS_SCRIPT_URL, {
