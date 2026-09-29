@@ -374,8 +374,8 @@
 
   <script>
     // ==== CONFIGURE THIS ====
-    const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
-    const ACCESS_TOKEN = "change-this-passcode"; // must match ACCESS_TOKEN in Code.gs
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4YsgFN6_BYrQIJ-V_zM6OFqat2uCMjLfbPhu6-WpMqUe73IYRh193RzON23C4OIA/exec";
+    const ACCESS_TOKEN = "VEW_2026"; // 
     // =========================
 
     // --- Passcode gate ---
@@ -409,9 +409,9 @@
 
     function initMap() {
       const map = L.map('map').setView([51.05, 13.9], 12);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: 'Tiles &copy; Esri'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
       let allData = [];
@@ -677,15 +677,10 @@
             lineLayer.clearLayers();
 
             L.geoJSON(geojson, {
-              style: (feature) => {
-                const p = feature.properties || {};
-                const isMissing = (p.START_Stat && p.START_Stat !== "Complete") ||
-                  (p.END_Status && p.END_Status !== "Complete");
-                return {
-                  color: isMissing ? "#c0483a" : "#2f6f5e",
-                  weight: 4,
-                  opacity: 0.8
-                };
+              style: {
+                color: "#0788de",
+                weight: 2,
+                opacity: 0.8
               },
               onEachFeature: (feature, layer) => {
                 const p = feature.properties || {};
