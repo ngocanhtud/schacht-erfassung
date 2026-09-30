@@ -90,13 +90,6 @@
       display: flex;
       height: calc(100vh - 118px);
       width: 100%;
-      position: relative;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
     }
 
     #map {
@@ -332,26 +325,13 @@
           <option value="Excluded">Nur ausgeschlossene</option>
         </select>
       </label>
-      <label class="f">Dein Name (für Änderungen)
+      <label class="f">Ihr Name (für Änderungen)
         <input type="text" id="editorName" placeholder="Name eingeben" />
-      </label>
-      <label class="f" style="flex-direction:row; align-items:center; gap:6px; margin-top:16px;">
-        <input type="checkbox" id="toggleLines" />
-        Leitungen (Rohre) anzeigen
       </label>
     </div>
 
     <div class="content">
       <div id="map"></div>
-      <div id="loadingOverlay"
-        style="position:absolute; inset:0; background:rgba(244,246,245,0.85); display:flex; align-items:center; justify-content:center; z-index:1000; font-size:14px; color:var(--muted);">
-        <div style="text-align:center;">
-          <div
-            style="width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px;">
-          </div>
-          Lade Daten …
-        </div>
-      </div>
       <div class="table-pane">
         <table>
           <thead>
@@ -375,7 +355,7 @@
   <script>
     // ==== CONFIGURE THIS ====
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4YsgFN6_BYrQIJ-V_zM6OFqat2uCMjLfbPhu6-WpMqUe73IYRh193RzON23C4OIA/exec";
-    const ACCESS_TOKEN = "VEW_2026"; // 
+    const ACCESS_TOKEN = "VEW_2026";
     // =========================
 
     // --- Passcode gate ---
@@ -408,17 +388,15 @@
     }
 
     function initMap() {
-      const map = L.map('map').setView([51.05, 13.9], 12);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const map = L.map('map').setView([51.55, 14.713], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map);
+        }).addTo(map);
 
       let allData = [];
       let markers = {};
       let markerLayer = L.layerGroup().addTo(map);
-      let lineLayer = L.layerGroup(); // not added to map by default — toggled on demand
-      let linesLoaded = false;
 
       function showToast(msg) {
         const t = document.getElementById('toast');
@@ -478,7 +456,7 @@
       function toggleExclude(item, div, excludeValue) {
         const editorName = document.getElementById('editorName').value.trim();
         if (!editorName) {
-          showToast("Bitte zuerst deinen Namen oben eingeben.");
+          showToast("Bitte tragen Sie zuerst Ihren Namen oben ein.");
           return;
         }
         fetch(APPS_SCRIPT_URL, {
@@ -668,50 +646,6 @@
         });
       });
 
-      function loadLines() {
-        // Real GeoJSON exported directly from QGIS/ArcGIS Pro — sitting next to
-        // index.html on GitHub, no API call, no token, loads instantly.
-        fetch('leitungen.geojson')
-          .then(r => r.json())
-          .then(geojson => {
-            lineLayer.clearLayers();
-
-            L.geoJSON(geojson, {
-              style: {
-                color: "#0788de",
-                weight: 2,
-                opacity: 0.8
-              },
-              onEachFeature: (feature, layer) => {
-                const p = feature.properties || {};
-                const startId = p.START_Sc_1 || p.START_uniq || '–';
-                const endId = p.END_Scha_1 || p.END_uniqID || '–';
-                const length = p.Shape_Leng ? Math.round(p.Shape_Leng * 100) / 100 : null;
-                layer.bindPopup(`
-              <div class="popup-box">
-                <h3>${startId} → ${endId}</h3>
-                <div class="row">Line: ${p.START_Line || p.END_Line || '–'}</div>
-                <div class="row">Straße: ${p.START_Stra || p.END_Straß || '–'}</div>
-                <div class="row">Länge: ${length != null ? length + ' m' : '–'}</div>
-              </div>
-            `);
-              }
-            }).addTo(lineLayer);
-
-            linesLoaded = true;
-          })
-          .catch(() => showToast("Konnte leitungen.geojson nicht laden — liegt die Datei neben index.html?"));
-      }
-
-      document.getElementById('toggleLines').addEventListener('change', (e) => {
-        if (e.target.checked) {
-          if (!linesLoaded) loadLines();
-          lineLayer.addTo(map);
-        } else {
-          map.removeLayer(lineLayer);
-        }
-      });
-
       function loadData() {
         fetch(APPS_SCRIPT_URL + "?token=" + encodeURIComponent(ACCESS_TOKEN))
           .then(r => r.json())
@@ -731,11 +665,7 @@
               map.setView([allData[0].lat, allData[0].lon], 13);
             }
           })
-          .catch(() => showToast("Konnte Daten nicht laden. Apps-Script-URL prüfen."))
-          .finally(() => {
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) overlay.style.display = 'none';
-          });
+          .catch(() => showToast("Konnte Daten nicht laden. Apps-Script-URL prüfen."));
       }
 
       document.getElementById('filterAuslauf').addEventListener('change', () => { updateLineOptions(); applyFilters(); });
